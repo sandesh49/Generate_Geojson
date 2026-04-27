@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # generate-geojson
 
 Small utility project to generate a slightly shifted GeoJSON so geofence hashes are less likely to match existing farms during testing.
@@ -33,3 +34,6 @@ python adjust_geojson.py "D:\geo\farm.geojson" --max-offset-meters 1.5
 - Each geometry is translated by a small random amount (latitude/longitude).
 - Polygon rings are re-closed after shifting.
 - Keep offsets small so farm boundaries stay realistic for your test scenarios.
+=======
+# Generate_Geojson
+>>>>>>> origin/main
