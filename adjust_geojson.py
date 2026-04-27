@@ -17,6 +17,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+# Configure default input files here. Script will process all of them
+# when no CLI input paths are provided.
+DEFAULT_INPUT_FILES = [
+    r"C:\Users\sande\OneDrive\Desktop\DDS Test Geojson\Demo_9_HighRisk (1).geojson",
+    r"C:\Users\sande\OneDrive\Desktop\DDS Test Geojson\ITC_Coffee_polygon.geojson",
+    r"C:\Users\sande\OneDrive\Desktop\DDS Test Geojson\overlap national id.geojson",
+]
+
 
 def meters_to_lat_degrees(meters: float) -> float:
     # Approximation: 1 degree latitude ~= 111_320 meters.
@@ -130,21 +138,30 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Slightly adjust GeoJSON coordinates to avoid identical geofence hashes."
     )
-    parser.add_argument("input", type=Path, help="Input GeoJSON file path from your local folder.")
     parser.add_argument(
-        "--output",
+        "inputs",
+        nargs="*",
+        type=Path,
+        help=(
+            "Optional input GeoJSON file path(s). If omitted, script uses DEFAULT_INPUT_FILES "
+            "configured in this file."
+        ),
+    )
+    parser.add_argument(
+        "--output-dir",
         type=Path,
         default=None,
         help=(
-            "Optional output path. If omitted, a new file is created next to input as "
+            "Optional output directory for all generated files. If omitted, each output is "
+            "created next to its input file as "
             "<name>_shifted_<timestamp>.geojson"
         ),
     )
     parser.add_argument(
         "--max-offset-meters",
         type=float,
-        default=2.0,
-        help="Maximum random shift (in meters) on each axis. Default: 2.0",
+        default=4.0,
+        help="Maximum random shift (in meters) on each axis. Default: 4.0",
     )
     parser.add_argument(
         "--seed",
@@ -162,23 +179,31 @@ def main() -> None:
     if args.seed is not None:
         random.seed(args.seed)
 
-    with args.input.open("r", encoding="utf-8-sig") as f:
-        doc = json.load(f)
+    input_paths = args.inputs if args.inputs else [Path(p) for p in DEFAULT_INPUT_FILES]
+    if not input_paths:
+        raise ValueError(
+            "No input files found. Add paths in DEFAULT_INPUT_FILES or pass paths in command line."
+        )
 
-    adjusted = adjust_geojson(doc, args.max_offset_meters)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    for input_path in input_paths:
+        with input_path.open("r", encoding="utf-8-sig") as f:
+            doc = json.load(f)
 
-    if args.output is not None:
-        output_path = args.output
-    else:
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = args.input.with_name(f"{args.input.stem}_shifted_{stamp}.geojson")
+        adjusted = adjust_geojson(doc, args.max_offset_meters)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as f:
-        json.dump(adjusted, f, ensure_ascii=False, indent=2)
-        f.write("\n")
+        output_name = f"{input_path.stem}_shifted_{stamp}.geojson"
+        if args.output_dir is not None:
+            output_path = args.output_dir / output_name
+        else:
+            output_path = input_path.with_name(output_name)
 
-    print(f"Adjusted GeoJSON written to: {output_path}")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w", encoding="utf-8") as f:
+            json.dump(adjusted, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+
+        print(f"Adjusted GeoJSON written to: {output_path}")
 
 
 if __name__ == "__main__":
